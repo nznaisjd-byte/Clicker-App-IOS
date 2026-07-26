@@ -1,0 +1,45 @@
+name: Build IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build unsigned archive
+        run: |
+          xcodebuild \
+            -project TapCounter.xcodeproj \
+            -scheme TapCounter \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath build/TapCounter.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            archive
+
+      - name: Package IPA
+        run: |
+          mkdir -p build/Payload
+          cp -r build/TapCounter.xcarchive/Products/Applications/TapCounter.app build/Payload/
+          cd build
+          zip -r TapCounter.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: TapCounter-ipa
+          path: build/TapCounter.ipa
